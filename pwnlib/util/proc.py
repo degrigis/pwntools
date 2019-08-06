@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-from __future__ import division
 
 import errno
 import socket
@@ -39,7 +38,13 @@ def pidof(target):
          remote = target.sock.getpeername()
 
          def match(c):
-             return (c.raddr, c.laddr, c.status) == (local, remote, 'ESTABLISHED')
+             if c.family == socket.AF_INET6:
+                 return (tuple(c.raddr), tuple(c.laddr), c.status) == (local[:2], remote[:2], 'ESTABLISHED')
+             elif c.family == socket.AF_INET:
+                return (c.raddr, c.laddr, c.status) == (local, remote, 'ESTABLISHED')
+             else:
+                 log.debug("Can't match socket of address family {}".format(c.family))
+                 return False
 
          return [c.pid for c in psutil.net_connections() if match(c)]
 
@@ -100,9 +105,9 @@ def name(pid):
         Name of process as listed in ``/proc/<pid>/status``.
 
     Example:
-        >>> p = process('cat')
-        >>> name(p.pid)
-        'cat'
+        >>> pid = pidof('init')[0]
+        >>> name(pid) == 'init'
+        True
     """
     return psutil.Process(pid).name()
 
